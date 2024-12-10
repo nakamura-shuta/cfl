@@ -1,6 +1,6 @@
 # cfl (Copy For LLM)
 
-A command-line tool to copy file contents for LLM processing. This tool helps you prepare code for LLM analysis by copying files with proper formatting and contextual information.
+A library and CLI tool to copy file contents for LLM processing. This tool helps you prepare code for LLM analysis by copying files with proper formatting and contextual information.
 
 ## Features
 
@@ -10,23 +10,37 @@ A command-line tool to copy file contents for LLM processing. This tool helps yo
 - Display file statistics (size and token count)
 - Show directory structure
 - Support for multiple paths
+- Flexible pattern matching for file selection
+- Built-in token counting
 
 ## Installation
 
-### Using Homebrew (macOS)
+### As a CLI Tool
+
+Using Homebrew (macOS):
 ```bash
 brew tap nakamura-shuta/tap
 brew install cfl
 ```
 
-### Using Cargo
+Using Cargo:
 ```bash
 cargo install --git https://github.com/nakamura-shuta/cfl.git
 ```
 
+### As a Library
+
+Add to your `Cargo.toml`:
+```toml
+[dependencies]
+cfl = { git = "https://github.com/nakamura-shuta/cfl" }
+```
+
 ## Usage
 
-### Basic Usage
+### CLI Usage
+
+#### Basic Commands
 
 Copy all files in the current directory:
 ```bash
@@ -39,7 +53,7 @@ cfl src/main.rs
 cfl src/,tests/
 ```
 
-### Filtering Files
+#### File Filtering
 
 Include specific file patterns:
 ```bash
@@ -55,8 +69,8 @@ Exclude specific file patterns:
 # Copy all files except JSON files
 cfl . -e "*.json"
 
-# Copy all files except test files and JSON files
-cfl . -e "*_test.rs,*.json"
+# Copy all files except test files
+cfl . -e "*_test.rs,test_*.rs"
 ```
 
 Combine include and exclude patterns:
@@ -65,42 +79,134 @@ Combine include and exclude patterns:
 cfl . -i "*.rs" -e "*_test.rs"
 ```
 
-### Preview Mode
+#### Preview Mode
 
 Show which files would be copied without actually copying:
 ```bash
 cfl -s .
 ```
 
-### Output Format
+#### Output Format
 
 The copied content will be formatted as follows:
-```
+````
 ```path/to/file.rs
 // File contents here
 ```
-```
+````
 
-### Directory Structure
-
-When copying files, cfl will also show the directory structure:
+The command also displays useful information:
 ```
+✨ Successfully copied 3 files to clipboard:
+📁 Files:
+  • src/main.rs (2,345 bytes, 456 tokens)
+  • src/lib.rs (1,234 bytes, 234 tokens)
+  • src/cli.rs (567 bytes, 89 tokens)
+
+📊 Summary:
+  📂 Total files: 3
+  📦 Total size: 4,146 bytes
+  🔤 Total tokens: 779
+
 📁 Directory Structure:
 └── src/
-    ├── main.rs
-    ├── processor.rs
-    ├── error.rs
-    └── cli.rs
+  └── main.rs
+  └── lib.rs
+  └── cli.rs
 ```
 
-### Statistics
+### Library Usage
 
-cfl provides detailed statistics about the copied files:
+#### Basic Usage
+
+Simple file copying:
+```rust
+use cfl::{Result, copy_files};
+
+fn main() -> Result<()> {
+    // Copy all files in a directory
+    let content = copy_files("src/")?;
+    println!("Copied content:\n{}", content);
+    Ok(())
+}
 ```
-📊 Summary:
-  • Total files: 3
-  • Total size: 3,924 bytes
-  • Total tokens: 757
+
+Using the builder pattern for more control:
+```rust
+use cfl::{CflBuilder, Result};
+use std::path::Path;
+
+fn main() -> Result<()> {
+    let mut processor = CflBuilder::new()
+        .include_patterns("*.rs")
+        .exclude_patterns("*_test.rs")
+        .current_dir(Path::new("src/"))
+        .build()?;
+
+    processor.process_path(Path::new("src/"))?;
+    
+    // Get processed files information
+    for file in processor.get_target_files() {
+        println!("File: {} (size: {}, tokens: {})", 
+            file.path, file.size, file.tokens);
+    }
+
+    // Get directory structure
+    println!("Structure:\n{}", processor.get_directory_structure()?);
+
+    Ok(())
+}
+```
+
+#### Advanced Usage
+
+Processing multiple directories with different patterns:
+```rust
+use cfl::{CflBuilder, Result};
+
+fn main() -> Result<()> {
+    // Process Rust files
+    let mut rust_processor = CflBuilder::new()
+        .include_patterns("*.rs")
+        .exclude_patterns("*_test.rs")
+        .build()?;
+
+    rust_processor.process_path("src/")?;
+    println!("Rust files tokens: {}", rust_processor.get_total_tokens());
+
+    // Process configuration files
+    let mut config_processor = CflBuilder::new()
+        .include_patterns("*.toml,*.json")
+        .build()?;
+
+    config_processor.process_path(".")?;
+    println!("Config files size: {}", config_processor.get_total_size());
+
+    Ok(())
+}
+```
+
+#### Available Methods
+
+The `FileProcessor` struct provides several useful methods:
+
+| Method | Description |
+|--------|-------------|
+| `get_target_files()` | Get information about processed files |
+| `get_result()` | Get the formatted content string |
+| `get_total_size()` | Get total size of processed files |
+| `get_total_tokens()` | Get total token count |
+| `get_directory_structure()` | Get formatted directory structure |
+
+#### Running Examples
+
+The repository includes example code that you can run:
+```bash
+# Run basic usage example
+cargo run --example basic
+
+# Run advanced usage example
+cargo run --example advanced
 ```
 
 ## Options
@@ -120,26 +226,22 @@ cfl automatically respects your project's .gitignore rules, ensuring that:
 - Build artifacts are ignored
 - Node modules and other dependency directories are skipped
 
-## Examples
+## Error Handling
 
-1. Copy all Rust files for a specific feature:
-```bash
-cfl src/ -i "*.rs" -e "*_test.rs"
-```
+The library uses `anyhow` and `thiserror` for robust error handling:
+```rust
+use cfl::{Result, CflError};
 
-2. Copy configuration files:
-```bash
-cfl . -i "*.json,*.toml,*.yaml"
-```
-
-3. Copy multiple specific directories:
-```bash
-cfl src/core/,src/utils/,config/
-```
-
-4. Preview what would be copied:
-```bash
-cfl -s src/ -i "*.rs"
+fn process() -> Result<()> {
+    // Handle various error types
+    match operation() {
+        Err(CflError::PathNotFound(path)) => println!("Path not found: {}", path),
+        Err(CflError::Pattern(err)) => println!("Invalid pattern: {}", err),
+        Err(CflError::Clipboard(err)) => println!("Clipboard error: {}", err),
+        Ok(_) => println!("Success!"),
+    }
+    Ok(())
+}
 ```
 
 ## Contributing

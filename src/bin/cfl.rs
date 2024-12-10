@@ -1,15 +1,7 @@
-mod cli;
-mod error;
-mod processor;
-
-#[cfg(test)]
-mod tests;
-
 use anyhow::{Context, Result};
+use cfl::{cli::Cli, CflBuilder, CflError};
 use clap::Parser;
-use cli::Cli;
 use clipboard::{ClipboardContext, ClipboardProvider};
-use error::CflError;
 
 fn format_number(num: usize) -> String {
     num.to_string()
@@ -29,7 +21,15 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
     let current_dir = std::env::current_dir().context("Failed to get current directory")?;
 
-    let mut processor = processor::FileProcessor::new(&cli.include, &cli.exclude, &current_dir)?;
+    // パターンを事前に取得
+    let include_pattern = cli.include.as_deref().unwrap_or_default();
+    let exclude_pattern = cli.exclude.as_deref().unwrap_or_default();
+
+    let mut processor = CflBuilder::new()
+        .include_patterns(include_pattern)
+        .exclude_patterns(exclude_pattern)
+        .current_dir(&current_dir)
+        .build()?;
 
     for path in cli.paths.split(',') {
         processor
@@ -41,16 +41,16 @@ fn main() -> Result<()> {
     let files_count = target_files.len();
 
     if cli.show {
-        println!("Target files:");
+        println!("📋 Target files:");
         for file in target_files {
             println!(
-                "  {} ({} bytes, {} tokens)",
+                "  • {} ({} bytes, {} tokens)",
                 file.path,
                 format_number(file.size),
                 format_number(file.tokens)
             );
         }
-        println!("\nTotal: {} files", format_number(files_count));
+        println!("\n📊 Total: {} files", format_number(files_count));
     } else {
         let mut ctx: ClipboardContext =
             ClipboardProvider::new().map_err(|e| CflError::Clipboard(e.to_string()))?;
@@ -76,23 +76,25 @@ fn main() -> Result<()> {
         let total_tokens = processor.get_total_tokens();
 
         println!("\n📊 Summary:");
-        println!("  • Total files: {}", format_number(files_count));
-        println!("  • Total size: {} bytes", format_number(total_size));
-        println!("  • Total tokens: {}", format_number(total_tokens));
+        println!("  📂 Total files: {}", format_number(files_count));
+        println!("  📦 Total size: {} bytes", format_number(total_size));
+        println!("  🔤 Total tokens: {}", format_number(total_tokens));
 
         println!("\n📁 Directory Structure:");
         let structure = processor.get_directory_structure()?;
         println!("{}", structure);
 
         if let Some(include) = &cli.include {
-            println!("  • Include patterns: {}", include);
+            println!("  🎯 Include patterns: {}", include);
         }
         if let Some(exclude) = &cli.exclude {
-            println!("  • Exclude patterns: {}", exclude);
+            println!("  🚫 Exclude patterns: {}", exclude);
         }
 
         if files_count == 0 {
             println!("\n⚠️  No files were copied. Check your include/exclude patterns.");
+        } else {
+            println!("\n✅ Copy completed successfully!");
         }
     }
 

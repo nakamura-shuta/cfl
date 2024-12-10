@@ -58,10 +58,6 @@ pub struct Cli {
     pub exclude: Option<String>,
 
     /// Show target files (relative paths)
-    #[arg(
-        short,
-        long,
-        help = "Show which files would be copied without copying"
-    )]
+    #[arg(short, long, help = "Show which files would be copied without copying")]
     pub show: bool,
 }
