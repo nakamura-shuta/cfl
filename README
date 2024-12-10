@@ -1,0 +1,151 @@
+# cfl (Copy For LLM)
+
+A command-line tool to copy file contents for LLM processing. This tool helps you prepare code for LLM analysis by copying files with proper formatting and contextual information.
+
+## Features
+
+- Copy multiple files with proper markdown code block formatting
+- Support for include/exclude patterns
+- Respect .gitignore rules
+- Display file statistics (size and token count)
+- Show directory structure
+- Support for multiple paths
+
+## Installation
+
+### Using Homebrew (macOS)
+```bash
+brew tap nakamura-shuta/tap
+brew install cfl
+```
+
+### Using Cargo
+```bash
+cargo install --git https://github.com/nakamura-shuta/cfl.git
+```
+
+## Usage
+
+### Basic Usage
+
+Copy all files in the current directory:
+```bash
+cfl .
+```
+
+Copy specific files or directories:
+```bash
+cfl src/main.rs
+cfl src/,tests/
+```
+
+### Filtering Files
+
+Include specific file patterns:
+```bash
+# Copy only Rust files
+cfl . -i "*.rs"
+
+# Copy both Rust and TOML files
+cfl . -i "*.rs,*.toml"
+```
+
+Exclude specific file patterns:
+```bash
+# Copy all files except JSON files
+cfl . -e "*.json"
+
+# Copy all files except test files and JSON files
+cfl . -e "*_test.rs,*.json"
+```
+
+Combine include and exclude patterns:
+```bash
+# Copy only Rust files, but exclude test files
+cfl . -i "*.rs" -e "*_test.rs"
+```
+
+### Preview Mode
+
+Show which files would be copied without actually copying:
+```bash
+cfl -s .
+```
+
+### Output Format
+
+The copied content will be formatted as follows:
+```
+```path/to/file.rs
+// File contents here
+```
+```
+
+### Directory Structure
+
+When copying files, cfl will also show the directory structure:
+```
+📁 Directory Structure:
+└── src/
+    ├── main.rs
+    ├── processor.rs
+    ├── error.rs
+    └── cli.rs
+```
+
+### Statistics
+
+cfl provides detailed statistics about the copied files:
+```
+📊 Summary:
+  • Total files: 3
+  • Total size: 3,924 bytes
+  • Total tokens: 757
+```
+
+## Options
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| --include | -i | Include only files matching these patterns (comma-separated) |
+| --exclude | -e | Exclude files matching these patterns (comma-separated) |
+| --show | -s | Show which files would be copied without copying |
+| --help | -h | Show help message |
+| --version | -V | Show version information |
+
+## .gitignore Support
+
+cfl automatically respects your project's .gitignore rules, ensuring that:
+- Generated files are not included
+- Build artifacts are ignored
+- Node modules and other dependency directories are skipped
+
+## Examples
+
+1. Copy all Rust files for a specific feature:
+```bash
+cfl src/ -i "*.rs" -e "*_test.rs"
+```
+
+2. Copy configuration files:
+```bash
+cfl . -i "*.json,*.toml,*.yaml"
+```
+
+3. Copy multiple specific directories:
+```bash
+cfl src/core/,src/utils/,config/
+```
+
+4. Preview what would be copied:
+```bash
+cfl -s src/ -i "*.rs"
+```
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
